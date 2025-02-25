@@ -35,4 +35,14 @@ class Styles {
       padding: const EdgeInsets.fromLTRB(15, 5, 15, 5),
     );
   }
+
+  static ButtonStyle secondaryButton() {
+    return ElevatedButton.styleFrom(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(15),
+      ),
+      foregroundColor: Colors.deepPurple,
+      padding: const EdgeInsets.fromLTRB(15, 5, 15, 5),
+    );
+  }
 }

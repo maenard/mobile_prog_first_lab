@@ -1,6 +1,12 @@
+import 'package:email_validator/email_validator.dart';
+import 'package:first_laboratory_exam/components/custom_circular_progress_indicator.dart';
+import 'package:first_laboratory_exam/components/text_fields/outlined_text_field.dart';
+import 'package:first_laboratory_exam/models/user_metadata.dart';
 import 'package:first_laboratory_exam/pages/auth/login.dart';
+import 'package:first_laboratory_exam/services/auth_service.dart';
 import 'package:first_laboratory_exam/styles/styles.dart';
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class Register extends StatefulWidget {
   const Register({super.key});
@@ -10,8 +16,36 @@ class Register extends StatefulWidget {
 }
 
 class _RegisterState extends State<Register> {
-  bool obscureText = true;
+  late TextEditingController nameController;
+  late TextEditingController emailController;
+  late TextEditingController passwordController;
+  late TextEditingController confirmPasswordController;
+
+  bool obscureTextPw = true;
+  bool obscureTextCPw = true;
+
+  bool isLoading = false;
+
   final formKey = GlobalKey<FormState>();
+  final AuthService authService = AuthService();
+
+  @override
+  void initState() {
+    super.initState();
+    nameController = TextEditingController();
+    emailController = TextEditingController();
+    passwordController = TextEditingController();
+    confirmPasswordController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+    nameController.dispose();
+    emailController.dispose();
+    passwordController.dispose();
+    confirmPasswordController.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -51,13 +85,9 @@ class _RegisterState extends State<Register> {
                   const SizedBox(
                     height: 30,
                   ),
-                  TextFormField(
-                    style: const TextStyle(
-                      fontSize: 12,
-                    ),
-                    decoration: Styles.customInputDecoration(
-                      'Name',
-                    ),
+                  OutlinedTextField(
+                    controller: nameController,
+                    labelText: 'Name',
                     autovalidateMode: AutovalidateMode.onUserInteraction,
                     validator: (value) {
                       if (value!.isEmpty) {
@@ -69,17 +99,15 @@ class _RegisterState extends State<Register> {
                   const SizedBox(
                     height: 20,
                   ),
-                  TextFormField(
-                    style: const TextStyle(
-                      fontSize: 12,
-                    ),
-                    decoration: Styles.customInputDecoration(
-                      'Email',
-                    ),
+                  OutlinedTextField(
+                    controller: emailController,
+                    labelText: 'Email',
                     autovalidateMode: AutovalidateMode.onUserInteraction,
                     validator: (value) {
                       if (value!.isEmpty) {
                         return 'Email is required';
+                      } else if (!EmailValidator.validate(value)) {
+                        return 'Please enter a valid email.';
                       }
                       return null;
                     },
@@ -87,28 +115,35 @@ class _RegisterState extends State<Register> {
                   const SizedBox(
                     height: 20,
                   ),
-                  TextFormField(
-                    obscureText: obscureText,
-                    style: const TextStyle(
-                      fontSize: 12,
-                    ),
-                    decoration: Styles.customInputDecoration(
-                      'Password',
-                      suffixIcon: obscureText
-                          ? Icons.visibility_off_outlined
-                          : Icons.visibility_outlined,
-                      suffixIconOnPress: () {
-                        setState(() {
-                          obscureText = !obscureText;
-                        });
-                      },
-                    ),
+                  OutlinedTextField(
+                    controller: passwordController,
+                    labelText: 'Password',
+                    showVisibilityIcon: true,
                     autovalidateMode: AutovalidateMode.onUserInteraction,
                     validator: (value) {
                       if (value!.isEmpty) {
                         return 'Password is required';
                       } else if (value.length < 8) {
                         return 'Password must be greater than 8 characters';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(
+                    height: 20,
+                  ),
+                  OutlinedTextField(
+                    controller: confirmPasswordController,
+                    labelText: 'Confirm Password',
+                    showVisibilityIcon: true,
+                    autovalidateMode: AutovalidateMode.onUserInteraction,
+                    validator: (value) {
+                      final pw = passwordController.text;
+
+                      if (value!.isEmpty) {
+                        return 'Please confirm your password.';
+                      } else if (value != pw) {
+                        return 'Confirm password should be equal to your password';
                       }
                       return null;
                     },
@@ -136,26 +171,52 @@ class _RegisterState extends State<Register> {
                     child: ElevatedButton(
                       onPressed: () async {
                         if (formKey.currentState!.validate()) {
-                          var nav = Navigator.of(context);
-                          if (nav.canPop()) {
-                            nav.pop();
-                          } else {
-                            nav.push(
-                              MaterialPageRoute(
-                                builder: (context) => const Login(),
+                          setState(() {
+                            isLoading = true;
+                          });
+
+                          try {
+                            final name = nameController.text;
+                            final email = emailController.text;
+                            final pw = passwordController.text;
+
+                            final res =
+                                await authService.signUpWithEmailAndPassword(
+                              email: email,
+                              password: pw,
+                              userMetaData: UserMetadata(
+                                name: name,
+                              ),
+                            );
+
+                            final session = res.session;
+
+                            if (session != null) {
+                              Navigator.pop(context);
+                            }
+                          } on AuthException catch (e) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(e.message),
                               ),
                             );
                           }
+
+                          setState(() {
+                            isLoading = false;
+                          });
                         }
                       },
                       style: Styles.primaryButton(),
-                      child: const Text(
-                        'Sign up',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                        ),
-                      ),
+                      child: isLoading
+                          ? const CustomCircularProgressIndicator()
+                          : const Text(
+                              'Sign up',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                            ),
                     ),
                   ),
                   const SizedBox(
@@ -165,7 +226,7 @@ class _RegisterState extends State<Register> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       const Text(
-                        'Already have an account',
+                        'Already have an account?',
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
