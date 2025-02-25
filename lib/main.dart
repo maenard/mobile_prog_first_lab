@@ -6,8 +6,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 void main() async {
   await dotenv.load(fileName: '.env');
   await Supabase.initialize(
-    url: dotenv.get('SUPABASE_URL'),
-    anonKey: dotenv.get('SUPABASE_ANON_KEY'),
+    url: dotenv.get('SUPABASE_URL', fallback: ''),
+    anonKey: dotenv.get('SUPABASE_ANON_KEY', fallback: ''),
   );
   runApp(const MyApp());
 }
