@@ -1,10 +1,15 @@
+import 'dart:io';
+
+import 'package:first_laboratory_exam/components/avatar.dart';
 import 'package:first_laboratory_exam/components/custom_circular_progress_indicator.dart';
 import 'package:first_laboratory_exam/components/text_fields/outlined_text_field.dart';
 import 'package:first_laboratory_exam/models/contact.dart';
 import 'package:first_laboratory_exam/pages/home.dart';
 import 'package:first_laboratory_exam/repositories/contact_repository.dart';
+import 'package:first_laboratory_exam/services/auth_service.dart';
 import 'package:first_laboratory_exam/styles/styles.dart';
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ContactForm extends StatefulWidget {
   final Contact? contact;
@@ -25,8 +30,11 @@ class _ContactFormState extends State<ContactForm> {
   late TextEditingController _contactNumController;
   final formKey = GlobalKey<FormState>();
   final ContactRepository contactRepository = ContactRepository();
+  final AuthService authService = AuthService();
+  final _supabase = Supabase.instance.client;
 
   bool _isLoading = false;
+  File? _selectedImage;
 
   @override
   void initState() {
@@ -113,27 +121,17 @@ class _ContactFormState extends State<ContactForm> {
             key: formKey,
             child: Column(
               children: [
-                SizedBox(
-                  height: 300,
-                  width: double.infinity,
-                  child: Image.asset(
-                    'assets/images/new_contact.png',
-                  ),
-                ),
-                const Text(
-                  "New Contact",
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 15,
-                  ),
-                ),
-                const Text(
-                  'Please fill out the form to add a new contact.',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey,
-                  ),
+                Avatar(
+                  imgUrl: widget.contact?.imgUrl != null
+                      ? _supabase.storage.from('images').getPublicUrl(
+                            widget.contact!.imgUrl!,
+                          )
+                      : null,
+                  onUpload: (img) {
+                    setState(() {
+                      _selectedImage = img;
+                    });
+                  },
                 ),
                 const SizedBox(
                   height: 30,
@@ -190,56 +188,96 @@ class _ContactFormState extends State<ContactForm> {
                   child: ElevatedButton(
                     onPressed: () async {
                       if (formKey.currentState!.validate()) {
-                        setState(() {
-                          _isLoading = true;
-                        });
+                        try {
+                          setState(() {
+                            _isLoading = true;
+                          });
 
-                        final firstName = _fnameController.text;
-                        final middleName = _mnameController.text;
-                        final lastName = _lnameController.text;
-                        final email = _emailController.text;
-                        final contactNum = _contactNumController.text;
+                          final firstName = _fnameController.text;
+                          final middleName = _mnameController.text;
+                          final lastName = _lnameController.text;
+                          final email = _emailController.text;
+                          final contactNum = _contactNumController.text;
 
-                        if (widget.contact != null) {
-                          await contactRepository.updateContact(
-                            oldContact: widget.contact!,
-                            newContact: Contact(
-                              firstName: firstName,
-                              middleName: middleName,
-                              lastName: lastName,
-                              email: email,
-                              contactNum: contactNum,
+                          String fileName = "";
+                          String path = "";
+                          // String publicUrl = "";
+
+                          if (_selectedImage != null) {
+                            fileName = DateTime.now()
+                                .millisecondsSinceEpoch
+                                .toString();
+                            path = widget.contact?.imgUrl != null
+                                ? widget.contact!.imgUrl!
+                                : "contactAvatars/$fileName";
+
+                            if (widget.contact?.imgUrl != null) {
+                              await _supabase.storage.from('images').update(
+                                    path,
+                                    _selectedImage!,
+                                  );
+                            } else {
+                              await _supabase.storage.from('images').upload(
+                                    path,
+                                    _selectedImage!,
+                                  );
+                            }
+
+                            // publicUrl = _supabase.storage
+                            //     .from('images')
+                            //     .getPublicUrl(path);
+                          }
+
+                          if (widget.contact != null) {
+                            await contactRepository.updateContact(
+                              oldContact: widget.contact!,
+                              newContact: Contact(
+                                firstName: firstName,
+                                middleName: middleName,
+                                lastName: lastName,
+                                email: email,
+                                contactNum: contactNum,
+                                imgUrl: path.isEmpty ? null : path,
+                              ),
+                            );
+                          } else {
+                            await contactRepository.createContact(
+                              contact: Contact(
+                                firstName: firstName,
+                                middleName: middleName,
+                                lastName: lastName,
+                                email: email,
+                                contactNum: contactNum,
+                                imgUrl: path.isEmpty ? null : path,
+                              ),
+                            );
+                          }
+
+                          setState(() {
+                            _isLoading = false;
+                          });
+
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              behavior: SnackBarBehavior.floating,
+                              content: Text(
+                                widget.contact != null
+                                    ? 'Contact updated successfully'
+                                    : 'Contact added successfully',
+                              ),
                             ),
                           );
-                        } else {
-                          await contactRepository.createContact(
-                            contact: Contact(
-                              firstName: firstName,
-                              middleName: middleName,
-                              lastName: lastName,
-                              email: email,
-                              contactNum: contactNum,
+
+                          final nav = Navigator.of(context);
+                          nav.pop();
+                        } on Exception catch (e) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              behavior: SnackBarBehavior.floating,
+                              content: Text(e.toString()),
                             ),
                           );
                         }
-
-                        setState(() {
-                          _isLoading = false;
-                        });
-
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            behavior: SnackBarBehavior.floating,
-                            content: Text(
-                              widget.contact != null
-                                  ? 'Contact updated successfully'
-                                  : 'Contact added successfully',
-                            ),
-                          ),
-                        );
-
-                        final nav = Navigator.of(context);
-                        nav.pop();
                       }
                     },
                     style: Styles.primaryButton(),

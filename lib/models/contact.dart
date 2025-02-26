@@ -6,6 +6,7 @@ class Contact {
   final String email;
   final String contactNum;
   final String? userId;
+  final String? imgUrl;
 
   Contact({
     this.id,
@@ -15,6 +16,7 @@ class Contact {
     required this.email,
     required this.contactNum,
     this.userId,
+    this.imgUrl,
   });
 
   factory Contact.fromMap(Map<String, dynamic> map) {
@@ -26,6 +28,7 @@ class Contact {
       email: map['email'],
       contactNum: map['contact_num'],
       userId: map['user_id'],
+      imgUrl: map['img'],
     );
   }
 
@@ -38,6 +41,7 @@ class Contact {
       'email': email,
       'contact_num': contactNum,
       if (userId != null) 'user_id': userId,
+      if (imgUrl != null) 'img': imgUrl,
     };
   }
 }

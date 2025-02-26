@@ -1,5 +1,4 @@
 import 'dart:async';
-
 import 'package:first_laboratory_exam/models/contact.dart';
 import 'package:first_laboratory_exam/models/user_metadata.dart';
 import 'package:first_laboratory_exam/pages/contacts/contact_form.dart';
@@ -248,6 +247,9 @@ class _HomeState extends State<Home> {
             ? contact.middleName![0].toUpperCase()
             : '';
         final String lname = contact.lastName;
+        final String imgUrl = contact.imgUrl != null
+            ? _supabase.storage.from('images').getPublicUrl(contact.imgUrl!)
+            : '';
         return Column(
           children: [
             if (separate)
@@ -279,14 +281,18 @@ class _HomeState extends State<Home> {
                 );
               },
               leading: CircleAvatar(
-                child: Text(
-                  contact.middleName!.isNotEmpty
-                      ? contact.lastName[0].toUpperCase()
-                      : '',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+                backgroundImage:
+                    contact.imgUrl != null ? NetworkImage(imgUrl) : null,
+                child: contact.imgUrl != null
+                    ? const SizedBox()
+                    : Text(
+                        contact.middleName!.isNotEmpty
+                            ? contact.lastName[0].toUpperCase()
+                            : '',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
               ),
               title: Text(
                 "$lname, $fname $mname.",

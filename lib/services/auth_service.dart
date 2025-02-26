@@ -27,7 +27,7 @@ class AuthService {
   }
 
   Future<void> signOut() async {
-    supabase.auth.signOut();
+    await supabase.auth.signOut();
   }
 
   Session? getSession() {
